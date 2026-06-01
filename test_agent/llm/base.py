@@ -54,19 +54,7 @@ class LLMProvider(ABC):
         )
 
 
-def get_provider(provider_name: str) -> LLMProvider:
-    """
-    Factory function to get an LLM provider by name.
-
-    Args:
-        provider_name: Name of the provider ('claude', 'openai', 'kimi', 'ollama')
-
-    Returns:
-        An instance of the requested LLMProvider
-
-    Raises:
-        ValueError: If provider_name is not recognized
-    """
+def get_provider(provider_name: str, model: str | None = None) -> LLMProvider:
     from test_agent.llm.claude import ClaudeProvider
     from test_agent.llm.openai import OpenAIProvider
     from test_agent.llm.kimi import KimiProvider
@@ -80,4 +68,7 @@ def get_provider(provider_name: str) -> LLMProvider:
     }
     if provider_name not in providers:
         raise ValueError(f"Unknown provider: {provider_name}. Choose from {list(providers)}")
-    return providers[provider_name]()
+    instance = providers[provider_name]()
+    if model:
+        instance._model = model
+    return instance
