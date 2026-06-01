@@ -5,6 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "test-agent"
 version = "0.1.0"
+description = "Language-agnostic CLI that finds coverage gaps and generates test suggestions interactively via LLM"
 requires-python = ">=3.11"
 dependencies = [
     "typer>=0.12",
