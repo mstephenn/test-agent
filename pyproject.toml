@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "test-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13",
+    "anthropic>=0.28",
+    "openai>=1.30",
+    "requests>=2.31",
+    "defusedxml>=0.7",
+]
+
+[project.scripts]
+test-agent = "test_agent.cli:app"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov", "mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
