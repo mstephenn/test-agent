@@ -34,3 +34,11 @@ def test_save_session(mem):
     sessions = mem.list_sessions()
     assert len(sessions) == 1
     assert sessions[0]["approved"] == 3
+
+
+def test_close_renders_connection_unusable(tmp_path):
+    import pytest
+    m = Memory(tmp_path / ".test-agent" / "memory.db")
+    m.close()
+    with pytest.raises(Exception):
+        m.is_skipped("src/foo.py", "bar")

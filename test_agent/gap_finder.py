@@ -37,7 +37,8 @@ def find_gaps(
     gaps: list[Gap] = []
     for src_file in source_files:
         try:
-            tree = ast.parse(src_file.read_text())
+            source = src_file.read_text()
+            tree = ast.parse(source)
         except SyntaxError:
             continue
         rel_path = str(src_file.relative_to(project_root))
@@ -50,7 +51,7 @@ def find_gaps(
                 continue
             if symbol in tested_symbols:
                 continue
-            context = ast.get_source_segment(src_file.read_text(), node) or ""
+            context = ast.get_source_segment(source, node) or ""
             kind, priority = _classify(node, symbol, uncovered_lines)
             gaps.append(Gap(
                 file=rel_path,
