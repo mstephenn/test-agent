@@ -33,7 +33,7 @@ _SOURCE_EXTENSIONS = {
 
 @app.command()
 def run(
-    project_root: Path = typer.Argument(..., help="Path to the repo root"),
+    project_root: Path = typer.Argument(Path("."), help="Path to the repo root (defaults to current directory)"),
     changed: bool = typer.Option(False, "--changed", help="Only files changed vs main"),
     since: Optional[str] = typer.Option(None, "--since", help="Git ref to compare from"),
     path: Optional[Path] = typer.Option(None, "--path", help="Limit to a subdirectory"),
