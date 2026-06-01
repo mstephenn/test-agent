@@ -4,6 +4,15 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+_JSON_TO_FIELD: dict[str, str] = {
+    "provider": "provider",
+    "stack": "stack",
+    "testFramework": "test_framework",
+    "testPlacement": "test_placement",
+    "excludePaths": "exclude_paths",
+    "maxSuggestionsPerRun": "max_suggestions",
+}
+
 
 @dataclass
 class Config:
@@ -20,18 +29,9 @@ def load_config(project_root: Path) -> Config:
     config_file = project_root / "test-agent.config.json"
     if config_file.exists():
         data = json.loads(config_file.read_text())
-        if "provider" in data:
-            cfg.provider = data["provider"]
-        if "stack" in data:
-            cfg.stack = data["stack"]
-        if "testFramework" in data:
-            cfg.test_framework = data["testFramework"]
-        if "testPlacement" in data:
-            cfg.test_placement = data["testPlacement"]
-        if "excludePaths" in data:
-            cfg.exclude_paths = data["excludePaths"]
-        if "maxSuggestionsPerRun" in data:
-            cfg.max_suggestions = data["maxSuggestionsPerRun"]
+        for json_key, field_name in _JSON_TO_FIELD.items():
+            if json_key in data:
+                setattr(cfg, field_name, data[json_key])
     env_provider = os.environ.get("TEST_AGENT_PROVIDER")
     if env_provider:
         cfg.provider = env_provider
