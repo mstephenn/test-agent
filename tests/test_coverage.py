@@ -2,7 +2,7 @@ from pathlib import Path
 from test_agent.coverage import parse_coverage, CoverageData
 import pytest
 
-FIXTURES = Path("tests/fixtures")
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_parse_lcov():
