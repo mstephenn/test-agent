@@ -40,3 +40,28 @@ def test_ts_plugin_preferred_over_js_when_tsconfig_present(tmp_path):
     (tmp_path / "tsconfig.json").write_text("{}")
     ts_plugin = TypeScriptPlugin()
     assert ts_plugin.detect(tmp_path) is True
+
+
+# New tests for detect_stacks function
+from test_agent.detector import detect_stacks
+
+
+def test_detect_single_stack_python():
+    stacks = detect_stacks(PYTHON_ROOT)
+    assert len(stacks) == 1
+    assert stacks[0].name == "Python"
+
+
+def test_detect_js_stack():
+    stacks = detect_stacks(JS_ROOT)
+    assert len(stacks) == 1
+    assert stacks[0].name == "JavaScript"
+
+
+def test_detect_polyglot(tmp_path):
+    (tmp_path / "requirements.txt").write_text("flask")
+    (tmp_path / "package.json").write_text('{"name":"app"}')
+    stacks = detect_stacks(tmp_path)
+    names = {s.name for s in stacks}
+    assert "Python" in names
+    assert "JavaScript" in names
