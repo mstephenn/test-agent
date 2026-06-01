@@ -72,7 +72,7 @@ def run(
             changed_files=changed_files,
         )
         coverage_data = _find_coverage_report(project_root, plugin)
-        existing_tests = scan_files(project_root, extensions=extensions)
+        existing_tests = scan_files(project_root, extensions=extensions, exclude_paths=config.exclude_paths)
 
         gaps = find_gaps(
             source_files=source_files,
@@ -107,10 +107,12 @@ def run(
             session_log.record_skipped()
             memory.record_outcome(session_id, result.suggestion.gap.file, result.suggestion.gap.symbol, "skipped")
 
+    coverage_after = _run_tests_and_get_coverage(project_root, stacks) if measure and not dry_run else None
     session_log.finalize(
         provider=config.provider,
         gaps_found=len(all_suggestions),
         stack=[p.name for p in stacks],
+        coverage_after=coverage_after,
     )
     memory.save_session(
         session_id=session_id,
@@ -145,7 +147,31 @@ def _get_changed_files(project_root: Path, since: Optional[str]) -> list[Path]:
         capture_output=True,
         text=True,
     )
+    if result.returncode != 0:
+        console.print(f"[yellow]Warning: git diff failed, scanning all files.[/]")
+        return []
     return [project_root / f.strip() for f in result.stdout.splitlines() if f.strip()]
+
+
+def _run_tests_and_get_coverage(project_root: Path, stacks) -> float | None:
+    """Run the test suite and return line coverage percentage, or None on failure."""
+    import subprocess
+    runner = stacks[0].test_runner if stacks else "pytest"
+    result = subprocess.run(
+        runner.split() + ["--cov", "--cov-report=json", "-q"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+    )
+    coverage_json = project_root / "coverage.json"
+    if coverage_json.exists():
+        import json
+        try:
+            data = json.loads(coverage_json.read_text())
+            return data.get("totals", {}).get("percent_covered")
+        except Exception:
+            pass
+    return None
 
 
 def _find_coverage_report(project_root: Path, plugin) -> object | None:
