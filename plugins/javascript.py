@@ -14,9 +14,7 @@ class JavaScriptPlugin(StackPlugin):
 
     @property
     def test_runner(self) -> str:
-        return self._framework or "jest"
-
-    _framework: str | None = None
+        return "jest"
 
     def test_file_path(self, source_file: Path, project_root: Path) -> Path:
         return source_file.parent / (source_file.stem + ".test" + source_file.suffix)
