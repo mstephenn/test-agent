@@ -38,6 +38,7 @@ def run(
     since: Optional[str] = typer.Option(None, "--since", help="Git ref to compare from"),
     path: Optional[Path] = typer.Option(None, "--path", help="Limit to a subdirectory"),
     provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider override"),
+    model: Optional[str] = typer.Option(None, "--model", help="Model name override (e.g. qwen2.5-coder for Ollama)"),
     auto_approve: bool = typer.Option(False, "--auto-approve"),
     measure: bool = typer.Option(False, "--measure", help="Re-run tests after applying suggestions"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show suggestions, write nothing"),
@@ -56,7 +57,7 @@ def run(
     memory = Memory(project_root / ".test-agent" / "memory.db")
     session_id = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H-%M-%S")
     session_log = SessionLog(project_root=project_root, session_id=session_id)
-    llm = get_provider(config.provider)
+    llm = get_provider(config.provider, model=model)
 
     changed_files = _get_changed_files(project_root, since) if (changed or since) else None
 
