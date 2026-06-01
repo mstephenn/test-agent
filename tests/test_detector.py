@@ -1,8 +1,9 @@
 from pathlib import Path
 import pytest
-from plugins.python import PythonPlugin
 from plugins.javascript import JavaScriptPlugin
+from plugins.python import PythonPlugin
 from plugins.typescript import TypeScriptPlugin
+from test_agent.detector import detect_stacks
 
 PYTHON_ROOT = Path("tests/fixtures/sample_repos/python_project")
 JS_ROOT = Path("tests/fixtures/sample_repos/js_project")
@@ -41,9 +42,6 @@ def test_ts_plugin_preferred_over_js_when_tsconfig_present(tmp_path):
     ts_plugin = TypeScriptPlugin()
     assert ts_plugin.detect(tmp_path) is True
 
-
-# New tests for detect_stacks function
-from test_agent.detector import detect_stacks
 
 
 def test_detect_single_stack_python():
