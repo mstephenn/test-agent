@@ -1,23 +1,24 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from plugins.base import StackPlugin
+from test_agent.plugins.base import StackPlugin
 
 
-class JavaScriptPlugin(StackPlugin):
+class TypeScriptPlugin(StackPlugin):
     @property
     def name(self) -> str:
-        return "JavaScript"
+        return "TypeScript"
 
     def detect(self, project_root: Path) -> bool:
-        return (project_root / "package.json").exists() and not (project_root / "tsconfig.json").exists()
+        return (project_root / "tsconfig.json").exists()
 
     @property
     def test_runner(self) -> str:
         return "jest"
 
     def test_file_path(self, source_file: Path, project_root: Path) -> Path:
-        return source_file.parent / (source_file.stem + ".test" + source_file.suffix)
+        stem = source_file.stem
+        return source_file.parent / f"{stem}.test{source_file.suffix}"
 
     @property
     def coverage_formats(self) -> list[str]:
@@ -26,9 +27,9 @@ class JavaScriptPlugin(StackPlugin):
     @property
     def prompt_hints(self) -> str:
         return (
-            "You are writing JavaScript tests using Jest. "
-            "Use describe/it blocks. Follow AAA pattern. "
-            "Use jest.fn() for mocks only when testing I/O boundaries."
+            "You are writing TypeScript tests. "
+            "Use Jest with TypeScript. Follow AAA pattern. "
+            "Include proper type annotations in test files."
         )
 
     def detect_framework(self, project_root: Path) -> str:

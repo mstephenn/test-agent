@@ -1,8 +1,8 @@
 from pathlib import Path
 import pytest
-from plugins.javascript import JavaScriptPlugin
-from plugins.python import PythonPlugin
-from plugins.typescript import TypeScriptPlugin
+from test_agent.plugins.javascript import JavaScriptPlugin
+from test_agent.plugins.python import PythonPlugin
+from test_agent.plugins.typescript import TypeScriptPlugin
 from test_agent.detector import detect_stacks
 
 PYTHON_ROOT = Path("tests/fixtures/sample_repos/python_project")
