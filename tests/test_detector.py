@@ -1,8 +1,11 @@
 from pathlib import Path
 import pytest
 from plugins.python import PythonPlugin
+from plugins.javascript import JavaScriptPlugin
+from plugins.typescript import TypeScriptPlugin
 
 PYTHON_ROOT = Path("tests/fixtures/sample_repos/python_project")
+JS_ROOT = Path("tests/fixtures/sample_repos/js_project")
 
 def test_python_plugin_detects_requirements_txt():
     plugin = PythonPlugin()
@@ -22,3 +25,18 @@ def test_python_plugin_detects_pytest(tmp_path):
     (tmp_path / "pyproject.toml").write_text('[project]\ndependencies=["pytest"]')
     plugin = PythonPlugin()
     assert plugin.detect_framework(tmp_path) == "pytest"
+
+def test_js_plugin_detects_package_json():
+    plugin = JavaScriptPlugin()
+    assert plugin.detect(JS_ROOT) is True
+
+def test_js_plugin_detects_jest(tmp_path):
+    (tmp_path / "package.json").write_text('{"devDependencies":{"jest":"^29"}}')
+    plugin = JavaScriptPlugin()
+    assert plugin.detect_framework(tmp_path) == "jest"
+
+def test_ts_plugin_preferred_over_js_when_tsconfig_present(tmp_path):
+    (tmp_path / "package.json").write_text("{}")
+    (tmp_path / "tsconfig.json").write_text("{}")
+    ts_plugin = TypeScriptPlugin()
+    assert ts_plugin.detect(tmp_path) is True
