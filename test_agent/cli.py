@@ -108,25 +108,25 @@ def run(
     total_suggestions = 0
     all_results = []
 
+    executor = ExecutorAgent()
+    remaining_suggestions = config.max_suggestions
+
     for plugin in stacks:
-        extensions = _SOURCE_EXTENSIONS.get(plugin.name, [])
-        source_files = scan_files(
-            project_root,
-            extensions=extensions,
-            exclude_paths=config.exclude_paths,
-            scope_path=path,
-            changed_files=changed_files,
-        )
+        source_files = plugin_source_files.get(plugin.name, [])
         coverage_data = _find_coverage_report(project_root, plugin)
+        extensions = _SOURCE_EXTENSIONS.get(plugin.name, [])
         existing_tests = scan_test_files(project_root, extensions=extensions, exclude_paths=config.exclude_paths)
         framework = plugin.detect_framework(project_root)
-
         style_notes = memory.get_style_note("style") or ""
-        remaining_suggestions = config.max_suggestions
 
         for source_file in source_files:
             if remaining_suggestions <= 0:
                 break
+
+            rel_path = str(source_file.relative_to(project_root))
+            if memory.get_file_state(project_root_str, rel_path):
+                continue
+
             gaps = find_gaps(
                 source_files=[source_file],
                 project_root=project_root,
@@ -138,34 +138,60 @@ def run(
             if not gaps:
                 continue
 
-            file_suggestions = []
-            for gap in gaps:
-                target = resolve_test_target(gap, project_root, plugin, existing_tests)
-                target_file = str(target.path.relative_to(project_root))
-                existing_test_context = read_reference_test_context(target, existing_tests)
-                source_import_path = _source_import_path(target.path, project_root / gap.file)
-                requester = f"test-agent via {config.provider}"
-                with console.status(f"Generating test for [cyan]{gap.symbol}()[/] in [yellow]{gap.file}[/]..."):
-                    suggestion = _generate_valid_test(
+            console.print(f"\n[bold]●[/bold] {rel_path}")
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                future_baseline = pool.submit(executor.run_baseline, source_file, project_root, plugin)
+
+                writer_futures: list[tuple] = []
+                for gap in gaps:
+                    target = resolve_test_target(gap, project_root, plugin, existing_tests)
+                    target_file_rel = str(target.path.relative_to(project_root))
+                    existing_test_context = read_reference_test_context(target, existing_tests)
+                    source_import_path = _source_import_path(target.path, project_root / gap.file)
+                    requester = f"test-agent via {config.provider}"
+                    fw = pool.submit(
+                        _generate_valid_test,
                         llm=llm,
                         gap=gap,
                         plugin=plugin,
                         config=config,
                         style_notes=style_notes,
-                        target_file=target_file,
+                        target_file=target_file_rel,
                         target_status=target.status,
                         framework=framework,
                         existing_test_context=existing_test_context,
                         source_import_path=source_import_path,
                         requester=requester,
                     )
-                file_suggestions.append(suggestion)
+                    writer_futures.append((fw, target.path))
 
-            total_suggestions += len(file_suggestions)
-            remaining_suggestions -= len(file_suggestions)
+                file_suggestions = [f.result() for f, _ in writer_futures]
+                target_paths = [p for _, p in writer_futures]
+                baseline = future_baseline.result()
+
+            _print_baseline(console, baseline)
+            console.print(f"  [dim][writer][/dim]    {len(file_suggestions)} suggestion(s) ready")
+
             results = run_repl(file_suggestions, memory=memory, auto_approve=auto_approve, dry_run=dry_run)
             all_results.extend(results)
-            _apply_results(results, dry_run, project_root, session_id, session_log, memory)
+
+            _apply_results_with_verify(
+                results=results,
+                target_paths=target_paths,
+                baseline=baseline,
+                dry_run=dry_run,
+                project_root=project_root,
+                session_id=session_id,
+                session_log=session_log,
+                memory=memory,
+                executor=executor,
+                plugin=plugin,
+            )
+
+            memory.save_file_state(project_root_str, rel_path, len(gaps))
+            total_suggestions += len(file_suggestions)
+            remaining_suggestions -= len(file_suggestions)
 
     if not all_results:
         console.print("[green]No coverage gaps found — nothing to do.[/]")
@@ -280,7 +306,12 @@ def _test_code_rejection_reason(test_code: str, framework: str, gap, source_impo
 
 
 def _looks_like_jest(code: str) -> bool:
-    jest_markers = ("jest.", "jest.mock", ".toBe(", ".toEqual(", ".toThrow(")
+    jest_markers = (
+        "jest.", "jest.mock",
+        ".toBe(", ".toEqual(", ".toThrow(",
+        ".resolves.", ".rejects.",
+        ".toBeUndefined(", ".toBeNull(", ".toBeTruthy(", ".toBeFalsy(",
+    )
     return any(marker in code for marker in jest_markers)
 
 
@@ -310,8 +341,19 @@ def os_path_relpath(path: Path, start: Path) -> str:
     return os.path.relpath(path, start)
 
 
-def _apply_results(results, dry_run: bool, project_root: Path, session_id: str, session_log: SessionLog, memory: Memory) -> None:
-    for result in results:
+def _apply_results_with_verify(
+    results: list,
+    target_paths: list[Path],
+    baseline: ExecutorResult,
+    dry_run: bool,
+    project_root: Path,
+    session_id: str,
+    session_log: SessionLog,
+    memory: Memory,
+    executor: ExecutorAgent,
+    plugin,
+) -> None:
+    for result, target_path in zip(results, target_paths):
         if result.decision in (Decision.APPROVED, Decision.EDITED) and not dry_run:
             suggestion = result.suggestion
             if result.decision == Decision.EDITED and result.final_code is not None:
@@ -322,6 +364,11 @@ def _apply_results(results, dry_run: bool, project_root: Path, session_id: str, 
             else:
                 session_log.record_approved(suggestion.target_file)
             memory.record_outcome(session_id, suggestion.gap.file, suggestion.gap.symbol, result.decision.value)
+            try:
+                verify = executor.run_verify(target_path, project_root, plugin)
+                _print_verify(console, verify, baseline, target_path)
+            except Exception as exc:
+                console.print(f"  [dim][verify][/dim]    [dim]could not run: {exc}[/dim]")
         elif result.decision == Decision.SKIPPED_PERMANENTLY:
             session_log.record_skipped()
         elif result.decision == Decision.SKIPPED:
