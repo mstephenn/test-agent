@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,6 +42,19 @@ class Memory:
                 skipped INTEGER,
                 coverage_before REAL,
                 coverage_after REAL
+            );
+            CREATE TABLE IF NOT EXISTS project_scans (
+                project_root    TEXT PRIMARY KEY,
+                last_scan_at    TEXT,
+                detected_stacks TEXT,
+                structure_hash  TEXT
+            );
+            CREATE TABLE IF NOT EXISTS file_states (
+                project_root TEXT,
+                file_path    TEXT,
+                processed_at TEXT,
+                gaps_found   INTEGER,
+                PRIMARY KEY (project_root, file_path)
             );
         """)
         self._conn.commit()
@@ -102,6 +116,37 @@ class Memory:
     def list_sessions(self) -> list[dict]:
         rows = self._conn.execute("SELECT * FROM sessions ORDER BY timestamp DESC").fetchall()
         return [dict(r) for r in rows]
+
+    def get_project_scan(self, project_root: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM project_scans WHERE project_root=?", (project_root,)
+        ).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        result["detected_stacks"] = json.loads(result["detected_stacks"])
+        return result
+
+    def save_project_scan(self, project_root: str, stacks: list[str], structure_hash: str) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO project_scans VALUES (?,?,?,?)",
+            (project_root, _now(), json.dumps(stacks), structure_hash),
+        )
+        self._conn.commit()
+
+    def get_file_state(self, project_root: str, file_path: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM file_states WHERE project_root=? AND file_path=?",
+            (project_root, file_path),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def save_file_state(self, project_root: str, file_path: str, gaps_found: int) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO file_states VALUES (?,?,?,?)",
+            (project_root, file_path, _now(), gaps_found),
+        )
+        self._conn.commit()
 
     def close(self) -> None:
         self._conn.close()
