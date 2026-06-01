@@ -1,12 +1,12 @@
 from __future__ import annotations
 from pathlib import Path
-from plugins.base import StackPlugin
-from plugins.python import PythonPlugin
-from plugins.javascript import JavaScriptPlugin
-from plugins.typescript import TypeScriptPlugin
-from plugins.java import JavaPlugin
-from plugins.ruby import RubyPlugin
-from plugins.go import GoPlugin
+from test_agent.plugins.base import StackPlugin
+from test_agent.plugins.python import PythonPlugin
+from test_agent.plugins.javascript import JavaScriptPlugin
+from test_agent.plugins.typescript import TypeScriptPlugin
+from test_agent.plugins.java import JavaPlugin
+from test_agent.plugins.ruby import RubyPlugin
+from test_agent.plugins.go import GoPlugin
 
 _ALL_PLUGINS: list[StackPlugin] = [
     TypeScriptPlugin(),  # must come before JavaScript

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from test_agent.gap_finder import Gap
 from test_agent.config import Config
-from plugins.base import StackPlugin
+from test_agent.plugins.base import StackPlugin
 
 
 @dataclass

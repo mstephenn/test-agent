@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from plugins.base import StackPlugin
+from test_agent.plugins.base import StackPlugin
 
 
 class JavaPlugin(StackPlugin):

@@ -5,7 +5,7 @@ from openai import OpenAI
 from test_agent.llm.base import LLMProvider, TestSuggestion
 from test_agent.gap_finder import Gap
 from test_agent.config import Config
-from plugins.base import StackPlugin
+from test_agent.plugins.base import StackPlugin
 
 
 class OpenAIProvider(LLMProvider):
