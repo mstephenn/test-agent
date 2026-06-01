@@ -42,3 +42,42 @@ def test_close_renders_connection_unusable(tmp_path):
     m.close()
     with pytest.raises(Exception):
         m.is_skipped("src/foo.py", "bar")
+
+
+def test_save_and_get_project_scan(mem):
+    mem.save_project_scan("/path/to/project", ["Python"], "abc123")
+    result = mem.get_project_scan("/path/to/project")
+    assert result is not None
+    assert result["detected_stacks"] == ["Python"]
+    assert result["structure_hash"] == "abc123"
+
+
+def test_get_project_scan_returns_none_for_unknown(mem):
+    assert mem.get_project_scan("/nonexistent") is None
+
+
+def test_save_project_scan_overwrites_existing(mem):
+    mem.save_project_scan("/path", ["Python"], "hash1")
+    mem.save_project_scan("/path", ["Python", "TypeScript"], "hash2")
+    result = mem.get_project_scan("/path")
+    assert result["structure_hash"] == "hash2"
+    assert len(result["detected_stacks"]) == 2
+
+
+def test_save_and_get_file_state(mem):
+    mem.save_file_state("/path/to/project", "test_agent/cli.py", 3)
+    result = mem.get_file_state("/path/to/project", "test_agent/cli.py")
+    assert result is not None
+    assert result["gaps_found"] == 3
+    assert result["file_path"] == "test_agent/cli.py"
+
+
+def test_get_file_state_returns_none_for_unknown(mem):
+    assert mem.get_file_state("/path", "nonexistent.py") is None
+
+
+def test_save_file_state_overwrites_existing(mem):
+    mem.save_file_state("/path", "src/foo.py", 2)
+    mem.save_file_state("/path", "src/foo.py", 5)
+    result = mem.get_file_state("/path", "src/foo.py")
+    assert result["gaps_found"] == 5
