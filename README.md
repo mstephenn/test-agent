@@ -4,6 +4,12 @@ Language-agnostic CLI that finds coverage gaps and generates test suggestions in
 
 ## Install
 
+From local source (development):
+```bash
+pipx install --editable /path/to/test-agent
+```
+
+Once published to PyPI:
 ```bash
 pipx install test-agent
 ```
