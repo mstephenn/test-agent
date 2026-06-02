@@ -15,6 +15,12 @@ def test_test_suggestion_fields():
         test_code="def test_bar(): assert bar() is None",
         explanation="Tests that bar() returns None",
         gap=gap,
+        target_status="existing file",
+        requester="test-agent via kimi",
+        stack="Python",
+        framework="pytest",
     )
     assert suggestion.target_file == "tests/test_foo.py"
     assert suggestion.gap.symbol == "bar"
+    assert suggestion.target_status == "existing file"
+    assert suggestion.requester == "test-agent via kimi"

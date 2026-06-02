@@ -13,6 +13,7 @@ class Memory:
         self._init_schema()
 
     def _init_schema(self) -> None:
+        self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript("""
             CREATE TABLE IF NOT EXISTS skipped_symbols (
                 file TEXT,

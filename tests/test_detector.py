@@ -36,6 +36,11 @@ def test_js_plugin_detects_jest(tmp_path):
     plugin = JavaScriptPlugin()
     assert plugin.detect_framework(tmp_path) == "jest"
 
+def test_ts_plugin_detects_mocha_chai_sinon(tmp_path):
+    (tmp_path / "package.json").write_text('{"devDependencies":{"mocha":"^10","chai":"^4","sinon":"^17"}}')
+    plugin = TypeScriptPlugin()
+    assert plugin.detect_framework(tmp_path) == "mocha + chai + sinon"
+
 def test_ts_plugin_preferred_over_js_when_tsconfig_present(tmp_path):
     (tmp_path / "package.json").write_text("{}")
     (tmp_path / "tsconfig.json").write_text("{}")
