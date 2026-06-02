@@ -1,11 +1,7 @@
 from __future__ import annotations
 import os
-from pathlib import Path
 from openai import OpenAI
-from test_agent.llm.base import LLMProvider, TestSuggestion
-from test_agent.gap_finder import Gap
-from test_agent.config import Config
-from test_agent.plugins.base import StackPlugin
+from test_agent.llm.base import LLMProvider
 
 
 class OpenAIProvider(LLMProvider):
@@ -16,15 +12,7 @@ class OpenAIProvider(LLMProvider):
         )
         self._model = "gpt-4o"
 
-    def generate_test(
-        self,
-        gap: Gap,
-        plugin: StackPlugin,
-        config: Config,
-        style_notes: str = "",
-    ) -> TestSuggestion:
-        system = self._build_system_prompt(plugin, style_notes)
-        user = self._build_user_prompt(gap)
+    def _complete(self, system: str, user: str) -> str:
         response = self._client.chat.completions.create(
             model=self._model,
             messages=[
@@ -33,11 +21,4 @@ class OpenAIProvider(LLMProvider):
             ],
             max_tokens=1024,
         )
-        test_code = response.choices[0].message.content.strip()
-        target = str(plugin.test_file_path(Path(gap.file), Path(".")))
-        return TestSuggestion(
-            target_file=target,
-            test_code=test_code,
-            explanation=f"Tests {gap.symbol}() — {gap.kind}",
-            gap=gap,
-        )
+        return response.choices[0].message.content

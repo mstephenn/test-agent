@@ -7,13 +7,14 @@ from test_agent.llm.base import TestSuggestion
 
 def write_suggestion(suggestion: TestSuggestion, project_root: Path) -> None:
     target = Path(suggestion.target_file)
+    test_code = clean_test_code(suggestion.test_code)
     if not target.is_absolute():
         target = project_root / target
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
-        _append_to_file(target, suggestion.test_code)
+        _append_to_file(target, test_code)
     else:
-        _write_new_file(target, suggestion.test_code)
+        _write_new_file(target, test_code)
 
 
 def _append_to_file(target: Path, test_code: str) -> None:
@@ -37,3 +38,11 @@ def _atomic_write(target: Path, content: str) -> None:
 
 def _extract_function_names(code: str) -> set[str]:
     return set(re.findall(r"def\s+(\w+)\s*\(", code))
+
+
+def clean_test_code(code: str) -> str:
+    stripped = code.strip()
+    match = re.fullmatch(r"```(?:[a-zA-Z0-9_-]+)?\s*\n(.*)\n```", stripped, flags=re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return stripped

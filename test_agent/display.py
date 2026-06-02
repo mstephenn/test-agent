@@ -20,9 +20,13 @@ _DETECTION_MARKERS: dict[str, list[str]] = {
 }
 
 
+_STRUCTURE_HASH_CAP = 10_000
+
+
 def compute_structure_hash(project_root: Path) -> str:
-    """Return an md5 hex digest of all non-excluded paths under project_root."""
-    paths = []
+    """Return an md5 hex digest of non-excluded paths + sizes under project_root."""
+    entries = []
+    capped = False
     for p in project_root.rglob("*"):
         try:
             rel = p.relative_to(project_root)
@@ -30,8 +34,15 @@ def compute_structure_hash(project_root: Path) -> str:
             continue
         if any(part in _EXCLUDED_DIRS for part in rel.parts):
             continue
-        paths.append(str(rel))
-    return hashlib.md5("\n".join(sorted(paths)).encode()).hexdigest()
+        size = p.stat().st_size if p.is_file() else 0
+        entries.append(f"{rel}:{size}")
+        if len(entries) >= _STRUCTURE_HASH_CAP:
+            capped = True
+            break
+    payload = sorted(entries)
+    if capped:
+        payload.append("(capped)")
+    return hashlib.md5("\n".join(payload).encode()).hexdigest()
 
 
 class StartupDisplay:

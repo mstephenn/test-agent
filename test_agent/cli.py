@@ -9,6 +9,7 @@ import re
 from typing import Optional
 import typer
 from rich.console import Console
+from rich.panel import Panel
 
 from test_agent.config import load_config
 from test_agent.detector import detect_stacks
@@ -48,6 +49,9 @@ def run(
     auto_approve: bool = typer.Option(False, "--auto-approve"),
     measure: bool = typer.Option(False, "--measure", help="Re-run tests after applying suggestions"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show suggestions, write nothing"),
+    headless: bool = typer.Option(False, "--headless", help="Process all files unattended with parallel workers"),
+    auto: bool = typer.Option(False, "--auto", help="Auto mode: approve all, fix failures, run until no files remain"),
+    workers: Optional[int] = typer.Option(None, "--workers", help="Number of parallel workers for --headless/--auto (overrides config)"),
 ):
     config = load_config(project_root)
     if provider:
@@ -104,6 +108,40 @@ def run(
         already_done=already_done_count,
         last_scan_at=scan["last_scan_at"] if scan else None,
     )
+
+    if auto:
+        from test_agent.auto_runner import AutoRunner
+        workers_count = workers if workers is not None else config.headless_workers
+        result = AutoRunner().run(
+            stacks=stacks,
+            plugin_source_files=plugin_source_files,
+            project_root=project_root,
+            project_root_str=project_root_str,
+            config=config,
+            llm=llm,
+            memory=memory,
+            workers=workers_count,
+        )
+        _print_auto_summary(result)
+        memory.close()
+        raise typer.Exit(0)
+
+    if headless:
+        from test_agent.headless import HeadlessRunner
+        workers_count = workers if workers is not None else config.headless_workers
+        result = HeadlessRunner().run(
+            stacks=stacks,
+            plugin_source_files=plugin_source_files,
+            project_root=project_root,
+            project_root_str=project_root_str,
+            config=config,
+            llm=llm,
+            memory=memory,
+            workers=workers_count,
+        )
+        _print_headless_summary(result)
+        memory.close()
+        raise typer.Exit(0)
 
     total_suggestions = 0
     all_results = []
@@ -191,7 +229,10 @@ def run(
 
             memory.save_file_state(project_root_str, rel_path, len(gaps))
             total_suggestions += len(file_suggestions)
-            remaining_suggestions -= len(file_suggestions)
+            approved_count = sum(
+                1 for r in results if r.decision in (Decision.APPROVED, Decision.EDITED)
+            )
+            remaining_suggestions -= approved_count
 
     if not all_results:
         console.print("[green]No coverage gaps found — nothing to do.[/]")
@@ -421,6 +462,40 @@ def _print_verify(console: Console, result: ExecutorResult, baseline: ExecutorRe
         if first_fail:
             console.print(f"              [dim]{first_fail}[/dim]")
         console.print(f"              [dim](run pytest {test_file} for full output)[/dim]")
+
+
+def _print_headless_summary(result) -> None:
+    from test_agent.headless import HeadlessResult
+    mins, secs = divmod(int(result.duration_s), 60)
+    log_note = f"     {result.verify_failures} verify failures  (see .test-agent/headless.log)" if result.verify_failures else f"     0 verify failures"
+    body = (
+        f"  {result.files_scanned} files scanned\n"
+        f"   {result.files_scanned - result.files_with_gaps} files: no gaps found\n"
+        f"   {result.tests_written} tests written\n"
+        f"{log_note}\n"
+        f"  Duration: {mins}m {secs:02d}s"
+    )
+    console.print(Panel(body, title="Run Complete"))
+
+
+def _print_auto_summary(result) -> None:
+    from test_agent.auto_runner import AutoResult
+    mins, secs = divmod(int(result.duration_s), 60)
+    log_note = (
+        f"     {result.fix_failures} fix failures  (see .test-agent/auto.log)"
+        if result.fix_failures
+        else "     0 fix failures"
+    )
+    fixes_note = f"   {result.fixes_applied} fixes applied\n" if result.fixes_applied else ""
+    body = (
+        f"  {result.files_scanned} files scanned\n"
+        f"   {result.files_scanned - result.files_with_gaps} files: no gaps found\n"
+        f"   {result.tests_written} tests written\n"
+        f"{fixes_note}"
+        f"{log_note}\n"
+        f"  Duration: {mins}m {secs:02d}s"
+    )
+    console.print(Panel(body, title="Auto Run Complete"))
 
 
 def _find_coverage_report(project_root: Path, plugin) -> object | None:

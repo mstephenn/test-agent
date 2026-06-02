@@ -41,9 +41,11 @@ def run_repl(
     for i, suggestion in enumerate(suggestions, 1):
         console.print(Rule())
         console.print(f"[bold cyan][{i}/{total}][/] [yellow]{suggestion.gap.file}[/] → [green]{suggestion.target_file}[/]")
+        console.print(f"[dim]Requester:[/] {_requester_label(suggestion)}")
+        console.print(f"[dim]Target:[/] {_target_label(suggestion)}")
         console.print(f"[dim]Gap:[/] {suggestion.gap.symbol}() — {suggestion.gap.kind}")
         console.print()
-        syntax = Syntax(suggestion.test_code, "python", theme="monokai", line_numbers=False)
+        syntax = Syntax(suggestion.test_code, _syntax_for_stack(suggestion.stack), theme="monokai", line_numbers=False)
         console.print(syntax)
         console.print()
         console.print(f"[dim]✦ {approved} approved · {skipped} skipped · {total - i} remaining[/]")
@@ -105,3 +107,25 @@ def _open_in_editor(code: str) -> str:
     subprocess.call([editor, fname])
     with open(fname) as f:
         return f.read()
+
+
+def _syntax_for_stack(stack: str) -> str:
+    return {
+        "Python": "python",
+        "JavaScript": "javascript",
+        "TypeScript": "typescript",
+        "Java": "java",
+        "Ruby": "ruby",
+        "Go": "go",
+    }.get(stack, "python")
+
+
+def _requester_label(suggestion: TestSuggestion) -> str:
+    requester = suggestion.requester or "test-agent"
+    stack = f", {suggestion.stack} stack" if suggestion.stack else ""
+    framework = f", {suggestion.framework}" if suggestion.framework else ""
+    return f"{requester}{stack}{framework}"
+
+
+def _target_label(suggestion: TestSuggestion) -> str:
+    return f"{suggestion.target_file} ({suggestion.target_status})"
