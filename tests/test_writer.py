@@ -36,3 +36,14 @@ def test_does_not_duplicate_function(tmp_path):
     write_suggestion(suggestion, project_root=tmp_path)
     content = test_file.read_text()
     assert content.count("def test_bar") == 1
+
+
+def test_strips_markdown_code_fence_before_writing(tmp_path):
+    suggestion = _make_suggestion(
+        str(tmp_path / "tests" / "test_foo.py"),
+        "```python\ndef test_bar(): pass\n```",
+    )
+    write_suggestion(suggestion, project_root=tmp_path)
+    content = (tmp_path / "tests" / "test_foo.py").read_text()
+    assert "```" not in content
+    assert "def test_bar" in content

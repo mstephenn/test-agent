@@ -11,6 +11,7 @@ _JSON_TO_FIELD: dict[str, str] = {
     "testPlacement": "test_placement",
     "excludePaths": "exclude_paths",
     "maxSuggestionsPerRun": "max_suggestions",
+    "headlessWorkers": "headless_workers",
 }
 
 
@@ -22,6 +23,7 @@ class Config:
     test_placement: str | None = None  # "mirror" | "colocated" | None=auto
     exclude_paths: list[str] = field(default_factory=list)
     max_suggestions: int = 20
+    headless_workers: int = 4
 
 
 def load_config(project_root: Path) -> Config:
